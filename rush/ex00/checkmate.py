@@ -1,51 +1,88 @@
-STRAIGHT_DIRS = [(1, 0), (-1, 0), (0, 1), (0, -1)]
-DIAGONAL_DIRS = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
+# ทิศแนวตรง
+straight_dirs = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+
+# ทิศแนวทแยง
+diagonal_dirs = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
 
 def evaluate_checkmate(board: str) -> str:
-    
-    # ----- Parse & Validate -----
-    rows = [r.rstrip() for r in board.splitlines() if r.strip()]
-    if not rows or any(len(r) != len(rows) for r in rows):
+
+    # แยก string เป็นแต่ละแถวของตาราง
+    rows = []
+    for line in board.splitlines():
+        if line.strip():
+            rows.append(line.rstrip())
+
+    # ตารางต้องไม่ว่าง
+    if len(rows) == 0:
         return "Error"
 
-    n = len(rows)
-    grid = [list(r) for r in rows]
+    size = len(rows)
 
-    # ----- Validate King -----
-    kings = [(r, c) for r in range(n) for c in range(n) if grid[r][c] == 'K']
-    if len(kings) != 1:
+    # ต้องเป็นสี่เหลี่ยมจัตุรัส
+    for row in rows:
+        if len(row) != size:
+            return "Error"
+
+    # แปลงเป็น grid 2 มิติ เพราะถ้าเป็น 3D จะกลายเป็นหนัง..?
+    grid = []
+    for row in rows:
+        grid.append(list(row))
+
+    # หา King
+    king_row = -1
+    king_col = -1
+    king_count = 0
+
+    for r in range(size):
+        for c in range(size):
+            if grid[r][c] == 'K':
+                king_row = r
+                king_col = c
+                king_count += 1
+
+    if king_count != 1:
         return "Error"
 
-    kr, kc = kings[0]
+    # ใช้ King เป็นตัวไล่ดูในแต่ละทิศว่ามีตัวไหนจะเซ็ทหย่อเรา
+    def check_direction(dr, dc, attackers):
+        r = king_row + dr
+        c = king_col + dc
 
-    # ----- Directional Scan -----
-    def scan(dr, dc, valid):
-        r, c = kr + dr, kc + dc
-        while 0 <= r < n and 0 <= c < n:
+        while 0 <= r < size and 0 <= c < size:
             piece = grid[r][c]
-            if piece in {'P','R','B','Q','K'}:
-                return piece in valid
+
+            # เพราะโจทย์บอกว่ามีแค่ P,R,B,Q,K ที่เซ็ทหย่อ King ได้ ถ้ามีตัวประหลาดอื่น ๆ ก็ข้ามไป
+            if piece in {'P', 'R', 'B', 'Q', 'K'}: 
+                if piece in attackers:
+                    return True
+                else:
+                    return False
+
             r += dr
             c += dc
+
         return False
 
-    # ----- Pawn Check -----
+    # ตรวจ Pawn
     for dc in (-1, 1):
-        r, c = kr + 1, kc + dc
-        if 0 <= r < n and 0 <= c < n and grid[r][c] == 'P':
+        r = king_row + 1
+        c = king_col + dc
+        if 0 <= r < size and 0 <= c < size:
+            if grid[r][c] == 'P':
+                return "Success"
+
+    # แนวตรง Rook กับ Queen
+    for dr, dc in straight_dirs:
+        if check_direction(dr, dc, {'R', 'Q'}):
             return "Success"
 
-    # ----- Straight Threats -----
-    for dr, dc in STRAIGHT_DIRS:
-        if scan(dr, dc, {'R', 'Q'}):
-            return "Success"
-
-    # ----- Diagonal Threats -----
-    for dr, dc in DIAGONAL_DIRS:
-        if scan(dr, dc, {'B', 'Q'}):
+    # แนวทแยง Bishop กับ Queen
+    for dr, dc in diagonal_dirs:
+        if check_direction(dr, dc, {'B', 'Q'}):
             return "Success"
 
     return "Fail"
 
 def checkmate(board: str) -> None:
-    print(evaluate_checkmate(board))
+    result = evaluate_checkmate(board)
+    print(result)
